@@ -168,7 +168,7 @@ export function AdminCatalog({
         setMessage(error instanceof Error ? error.message : "Unable to delete product.");
       } finally {
         setIsSaving(false);
-    }
+      }
   }
 
   return (

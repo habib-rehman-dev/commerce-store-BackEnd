@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.schemas.product import ProductResponse, ProductCreate, ProductUpdate
-from app.core.cloudinary import is_configured, upload_image
+from app.core.cloudinary import delete_images, is_configured, upload_image
 import app.services.product as product_service
 
 router = APIRouter()
@@ -36,6 +36,17 @@ async def upload_product_image(
             status_code=502,
             detail="Cloudinary upload failed",
         ) from exc
+
+
+@router.delete("/images", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_product_image(
+    public_id: str = Query(..., min_length=1),
+    admin=Depends(require_admin),
+):
+    try:
+        await delete_images([public_id])
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 @router.get("/", response_model=List[ProductResponse])
 async def list_products(
