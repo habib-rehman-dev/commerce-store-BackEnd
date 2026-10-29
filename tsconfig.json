@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
@@ -42,3 +43,8 @@
     "skipLibCheck": true,
   }
 }
+=======
+  "extends": "@workspace/typescript-config/base.json"
+}
+
+>>>>>>> 3ceed77 (chore: remove unused environment example file and payment webhook routes; add TypeScript and Turbo configuration files)
