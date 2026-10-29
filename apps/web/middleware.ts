@@ -13,7 +13,8 @@ const middlewareHandler = auth(async function middleware(req: any) {
   const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
 
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    const role = (req.auth?.user as any)?.role;
+    return NextResponse.redirect(new URL(role === "admin" ? "/admin" : "/dashboard", req.url));
   }
 
   if (isProtected && !isLoggedIn) {

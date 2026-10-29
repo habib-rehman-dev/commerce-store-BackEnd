@@ -14,7 +14,7 @@ type SignInPageProps = {
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const session = await auth();
   if (session?.user) {
-    redirect("/dashboard");
+    redirect(session.user.role === "admin" ? "/admin" : "/dashboard");
   }
   const { callbackUrl } = await searchParams;
   const redirectTo = callbackUrl?.startsWith("/") ? callbackUrl : "/dashboard";

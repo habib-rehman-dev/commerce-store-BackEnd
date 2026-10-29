@@ -14,6 +14,13 @@ export default async function DashboardPage() {
   const user = session.user;
   const role = (user as any)?.role || "customer";
 
+  // Credentials authentication stores the role in the JWT. Keep the generic
+  // account route as the post-login target, then send administrators to their
+  // dedicated workspace.
+  if (role === "admin") {
+    redirect("/admin");
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">
       <div className="mb-8 flex items-center justify-between">
