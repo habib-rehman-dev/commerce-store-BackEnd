@@ -1,4 +1,6 @@
 from pydantic import model_validator
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -21,21 +23,25 @@ def to_async_postgres_url(url: str) -> str:
         )
     )
 
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[2] / ".env.local",
+        extra="ignore",
+    )
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./commerce.db"
     DATABASE_URL_POOLED: str = ""
     SYNC_DATABASE_URL: str = "sqlite:///./commerce.db"
     AUTH_SECRET: str = "super-secret-auth-key-change-in-production-123456"
     CLIENT_URL: str = "http://localhost:3000"
-    
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
-    
+
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
+    ADMIN_EMAIL: str = "contact.habib.dev@gmail.com"
 
     @model_validator(mode="after")
     def configure_postgres_drivers(self):

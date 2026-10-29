@@ -47,6 +47,9 @@ uvicorn app.main:app --reload --port 8000
 # Or use the FastAPI CLI from this directory
 fastapi dev
 ```
+- On startup, the API creates any missing model tables in the configured database.
+  This prevents a fresh local `commerce.db` from failing with `no such table`
+  before you seed it.
 - Interactive Swagger API Documentation: `http://localhost:8000/docs`
 - Health Check: `http://localhost:8000/api/health`
 

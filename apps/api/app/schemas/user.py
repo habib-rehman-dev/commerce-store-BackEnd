@@ -59,6 +59,20 @@ class LoginRequest(BaseModel):
             raise ValueError("Enter a valid email address")
         return normalized
 
+
+class GoogleLoginRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    image: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not EMAIL_PATTERN.fullmatch(normalized):
+            raise ValueError("Enter a valid email address")
+        return normalized
+
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

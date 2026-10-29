@@ -21,18 +21,24 @@ const nextAuthResult = NextAuth({
           return null;
         }
 
-        const response = await fetch(
-          `${process.env.API_URL || "http://127.0.0.1:8000"}/api/auth/login`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
-            cache: "no-store",
-          },
-        );
+        let response: Response;
+        try {
+          response = await fetch(
+            `${process.env.API_URL || "http://127.0.0.1:8000"}/api/auth/login`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                password: credentials.password,
+              }),
+              cache: "no-store",
+            },
+          );
+        } catch {
+          // An unavailable API must not be surfaced as an Auth.js configuration error.
+          return null;
+        }
         if (!response.ok) {
           return null;
         }
@@ -46,11 +52,40 @@ const nextAuthResult = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        token.sub = user.id;
-        token.role = (user as any).role || "customer";
-        token.accessToken = (user as any).accessToken;
+        if (account?.provider === "google" && user.email) {
+          try {
+            const response = await fetch(
+              `${process.env.API_URL || "http://127.0.0.1:8000"}/api/auth/google`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Internal-Auth-Secret": process.env.AUTH_SECRET || "",
+                },
+                body: JSON.stringify({
+                  email: user.email,
+                  name: user.name,
+                  image: user.image,
+                }),
+                cache: "no-store",
+              },
+            );
+            if (response.ok) {
+              const result = await response.json();
+              token.sub = result.user.id;
+              token.role = result.user.role;
+              token.accessToken = result.access_token;
+            }
+          } catch {
+            // The Google identity remains valid; API requests will be unavailable until it reconnects.
+          }
+        } else {
+          token.sub = user.id;
+          token.role = (user as any).role || "customer";
+          token.accessToken = (user as any).accessToken;
+        }
       }
       return token;
     },

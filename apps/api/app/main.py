@@ -3,6 +3,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
+from app.core.database import Base, engine
+import app.models  # noqa: F401
 from app.routers import (
     auth, users, categories, brands, products, specifications,
     cart, wishlist, orders, payments, coupons, addresses, reviews
@@ -11,6 +13,8 @@ from app.webhooks import stripe as stripe_webhook
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
     yield
 
 app = FastAPI(
@@ -44,7 +48,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Health endpoint
 @app.get("/api/health", tags=["health"])
 async def health():
-    return {"success": True, "message": "API is running", "database": "sqlite"}
+    database = "postgresql" if settings.DATABASE_URL.startswith("postgresql") else "sqlite"
+    return {"success": True, "message": "API is running", "database": database}
 
 # Feature Routers
 app.include_router(auth.router,           prefix="/api/auth",           tags=["auth"])

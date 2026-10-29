@@ -1,12 +1,51 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from hmac import compare_digest
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password
-from app.schemas.user import AuthResponse, LoginRequest, UserCreate, UserResponse
+from app.models.user import User
+from app.schemas.user import AuthResponse, GoogleLoginRequest, LoginRequest, UserCreate, UserResponse
 import app.services.user as user_service
 
 router = APIRouter()
+
+
+@router.post("/google", response_model=AuthResponse)
+async def google_login(
+    data: GoogleLoginRequest,
+    internal_secret: str | None = Header(None, alias="X-Internal-Auth-Secret"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Link a Google-authenticated profile to the local application user."""
+    if not internal_secret or not compare_digest(internal_secret, settings.AUTH_SECRET):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid internal authentication")
+
+    user = await user_service.get_user_by_email(db, data.email)
+    is_admin = data.email == settings.ADMIN_EMAIL.lower()
+    if not user:
+        user = User(
+            email=data.email,
+            name=data.name,
+            image=data.image,
+            role="admin" if is_admin else "customer",
+            status="active",
+        )
+        db.add(user)
+        await db.flush()
+    else:
+        user.name = data.name or user.name
+        user.image = data.image or user.image
+        if is_admin:
+            user.role = "admin"
+        await db.flush()
+
+    return AuthResponse(
+        access_token=create_access_token(user.id, user.role, user.email),
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.post("/login", response_model=AuthResponse)

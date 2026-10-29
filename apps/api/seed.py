@@ -14,21 +14,21 @@ async def seed():
         # Create default Admin and Customer
         admin = User(
             id=str(uuid.uuid4()),
-            email="admin@commerce.local",
+            email="contact.habib.dev@gmail.com",
             name="Store Admin",
             role="admin",
             status="active",
             hashed_password=get_password_hash("admin123")
         )
-        customer = User(
-            id=str(uuid.uuid4()),
-            email="customer@commerce.local",
-            name="John Doe",
-            role="customer",
-            status="active",
-            hashed_password=get_password_hash("password123")
-        )
-        db.add_all([admin, customer])
+        # customer = User(
+        #     id=str(uuid.uuid4()),
+        #     email="customer@commerce.local",
+        #     name="John Doe",
+        #     role="customer",
+        #     status="active",
+        #     hashed_password=get_password_hash("password123")
+        # )
+        # db.add_all([admin, customer])
 
         # Brands
         apple = Brand(
