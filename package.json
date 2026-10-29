@@ -1,40 +1,4 @@
 {
-<<<<<<< HEAD
-  "name": "server",
-  "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "",
-  "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "dev": "tsc --watch & node --watch dist/server.js",
-    "build": " tsc",
-    "start": "nodemon dist/server.js"
-  },
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/multer": "^2.2.0",
-    "@types/node": "^26.1.2",
-    "nodemon": "^3.1.14",
-    "typescript": "^7.0.2"
-  },
-  "dependencies": {
-    "@clerk/express": "^2.1.51",
-    "cloudinary": "^2.10.0",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "express-validator": "^7.3.2",
-    "http-errors": "^2.0.1",
-    "mongoose": "^9.9.1",
-    "multer": "^2.2.0",
-    "stripe": "^22.5.0",
-    "svix": "^1.99.1"
-  }
-}
-=======
   "name": "commerce-store",
   "version": "0.0.1",
   "private": true,
@@ -61,4 +25,3 @@
     "packages/*"
   ]
 }
->>>>>>> 3ceed77 (chore: remove unused environment example file and payment webhook routes; add TypeScript and Turbo configuration files)

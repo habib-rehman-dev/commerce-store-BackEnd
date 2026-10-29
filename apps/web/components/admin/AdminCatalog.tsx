@@ -89,13 +89,14 @@ export function AdminCatalog({
     } finally {
       setIsSaving(false);
     }
+  }
 
-    async function createProduct(event: FormEvent<HTMLFormElement>) {
+  async function createProduct(event: FormEvent<HTMLFormElement>) {
       event.preventDefault();
       setIsSaving(true);
       setMessage("");
+      let uploadedImage: UploadedImage | null = null;
       try {
-        let uploadedImage: UploadedImage | null = null;
         if (product.image) {
           const formData = new FormData();
           formData.append("image", product.image);
@@ -140,13 +141,19 @@ export function AdminCatalog({
         await refreshCatalog();
         setMessage("Product and image saved successfully.");
       } catch (error) {
+        if (uploadedImage) {
+          await fetchApi(
+            `/api/products/images?public_id=${encodeURIComponent(uploadedImage.public_id)}`,
+            { method: "DELETE", token },
+          ).catch(() => undefined);
+        }
         setMessage(error instanceof Error ? error.message : "Unable to save product.");
       } finally {
         setIsSaving(false);
       }
-    }
+  }
 
-    async function deleteProduct(productId: string) {
+  async function deleteProduct(productId: string) {
       if (!window.confirm("Delete this product and its Cloudinary images?")) return;
       setIsSaving(true);
       setMessage("");
@@ -161,7 +168,6 @@ export function AdminCatalog({
         setMessage(error instanceof Error ? error.message : "Unable to delete product.");
       } finally {
         setIsSaving(false);
-      }
     }
   }
 
