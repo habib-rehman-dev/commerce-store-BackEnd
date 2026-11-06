@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.models.order import Order, OrderItem, OrderShippingAddress
 from app.models.cart import Cart, CartItem
 from app.models.coupon import Coupon
+from app.models.product import Product
+from app.models.user import User
 from app.schemas.order import OrderCreate, OrderStatusUpdate
 
 async def create_order_from_cart(db: AsyncSession, user_id: str, data: OrderCreate) -> Order:
@@ -79,7 +81,7 @@ async def create_order_from_cart(db: AsyncSession, user_id: str, data: OrderCrea
     for ci in cart.items:
         await db.delete(ci)
 
-    await db.flush()
+    await db.commit()
     await db.refresh(order)
     return order
 
@@ -103,6 +105,35 @@ async def update_order_status(db: AsyncSession, order: Order, data: OrderStatusU
             order.cancellation_reason = data.cancellation_reason
     if data.payment_status:
         order.payment_status = data.payment_status
-    await db.flush()
+    await db.commit()
     await db.refresh(order)
     return order
+
+async def get_admin_stats(db: AsyncSession) -> Dict[str, Any]:
+    # Total revenue from paid orders
+    rev_res = await db.execute(select(func.coalesce(func.sum(Order.total), 0.0)).where(Order.payment_status == "paid"))
+    total_revenue = float(rev_res.scalar() or 0.0)
+
+    # Orders count
+    orders_res = await db.execute(select(func.count(Order.id)))
+    total_orders = int(orders_res.scalar() or 0)
+
+    # Pending count
+    pending_res = await db.execute(select(func.count(Order.id)).where(Order.status == "pending"))
+    pending_orders = int(pending_res.scalar() or 0)
+
+    # Products count
+    prod_res = await db.execute(select(func.count(Product.id)))
+    total_products = int(prod_res.scalar() or 0)
+
+    # Users count
+    user_res = await db.execute(select(func.count(User.id)))
+    total_users = int(user_res.scalar() or 0)
+
+    return {
+        "total_revenue": total_revenue,
+        "total_orders": total_orders,
+        "pending_orders": pending_orders,
+        "total_products": total_products,
+        "total_users": total_users,
+    }

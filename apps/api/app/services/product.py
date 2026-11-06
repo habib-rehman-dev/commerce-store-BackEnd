@@ -1,8 +1,9 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.models.product import Product, ProductVariant
-from app.schemas.product import ProductCreate, ProductUpdate, VariantCreate
+from app.schemas.product import ProductCreate, ProductUpdate
 from app.core.cloudinary import delete_images
 
 async def get_products(
@@ -13,7 +14,7 @@ async def get_products(
     skip: int = 0,
     limit: int = 50
 ) -> List[Product]:
-    query = select(Product)
+    query = select(Product).options(selectinload(Product.variants))
     if category_id:
         query = query.where(Product.category_id == category_id)
     if brand_id:
@@ -25,11 +26,19 @@ async def get_products(
     return list(res.scalars().all())
 
 async def get_product_by_id(db: AsyncSession, product_id: str) -> Optional[Product]:
-    res = await db.execute(select(Product).where(Product.id == product_id))
+    res = await db.execute(
+        select(Product)
+        .options(selectinload(Product.variants))
+        .where(Product.id == product_id)
+    )
     return res.scalar_one_or_none()
 
 async def get_product_by_slug(db: AsyncSession, slug: str) -> Optional[Product]:
-    res = await db.execute(select(Product).where(Product.slug == slug))
+    res = await db.execute(
+        select(Product)
+        .options(selectinload(Product.variants))
+        .where(Product.slug == slug)
+    )
     return res.scalar_one_or_none()
 
 async def create_product(db: AsyncSession, data: ProductCreate) -> Product:
@@ -45,18 +54,30 @@ async def create_product(db: AsyncSession, data: ProductCreate) -> Product:
         )
         db.add(variant)
     
-    await db.flush()
-    await db.refresh(product)
-    return product
+    await db.commit()
+
+    res = await db.execute(
+        select(Product)
+        .options(selectinload(Product.variants))
+        .where(Product.id == product.id)
+        .execution_options(populate_existing=True)
+    )
+    return res.scalar_one()
 
 async def update_product(db: AsyncSession, product: Product, data: ProductUpdate) -> Product:
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(product, k, v)
-    await db.flush()
-    await db.refresh(product)
-    return product
+    await db.commit()
+    res = await db.execute(
+        select(Product)
+        .options(selectinload(Product.variants))
+        .where(Product.id == product.id)
+        .execution_options(populate_existing=True)
+    )
+    return res.scalar_one()
 
 async def delete_product(db: AsyncSession, product: Product) -> None:
-    await delete_images(product.image_public_ids)
+    if product.image_public_ids:
+        await delete_images(product.image_public_ids)
     await db.delete(product)
-    await db.flush()
+    await db.commit()

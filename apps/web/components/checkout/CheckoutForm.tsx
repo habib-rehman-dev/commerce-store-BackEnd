@@ -1,16 +1,20 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
+import { CreditCard, Truck, Loader2 } from "lucide-react";
 
 type Props = { token: string };
 
 export function CheckoutForm({ token }: Props) {
+  const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<"stripe" | "cod">("stripe");
   const [message, setMessage] = useState("");
+  const [couponCode, setCouponCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -20,11 +24,13 @@ export function CheckoutForm({ token }: Props) {
     setMessage("");
 
     try {
+      // 1. Create order in FastAPI backend
       const order = await fetchApi<{ id: string }>("/api/orders/", {
         method: "POST",
         token,
         body: JSON.stringify({
           payment_method: paymentMethod,
+          coupon_code: couponCode.trim() || undefined,
           shipping_address: {
             full_name: form.get("full_name"),
             phone: form.get("phone"),
@@ -37,80 +43,144 @@ export function CheckoutForm({ token }: Props) {
         }),
       });
 
+      // 2. Handle payment flow
       if (paymentMethod === "stripe") {
-        const payment = await fetchApi<{ client_secret?: string }>("/api/payments/create-intent", {
-          method: "POST",
-          token,
-          body: JSON.stringify({ order_id: order.id }),
-        });
-        setMessage(
-          payment.client_secret
-            ? "Payment intent created. Connect Stripe Elements to collect card details."
-            : "This order already has a completed payment.",
+        const session = await fetchApi<{ session_id: string; url: string }>(
+          "/api/payments/create-checkout-session",
+          {
+            method: "POST",
+            token,
+            body: JSON.stringify({ order_id: order.id }),
+          }
         );
+
+        if (session.url) {
+          window.location.href = session.url;
+        } else {
+          router.push(`/checkout/success?session_id=${session.session_id}&order_id=${order.id}`);
+        }
       } else {
-        setMessage("Order placed with cash on delivery.");
+        // Cash on delivery
+        router.push(`/checkout/success?order_id=${order.id}`);
       }
-      event.currentTarget.reset();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to place order.");
-    } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <Card>
+    <Card className="shadow-lg border-muted">
       <CardHeader>
-        <CardTitle>Delivery and payment</CardTitle>
+        <CardTitle className="text-xl">Shipping & Payment Details</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={submit}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input name="full_name" placeholder="Full name" required />
-            <Input name="phone" placeholder="Phone number" required />
+        <form className="grid gap-5" onSubmit={submit}>
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              1. Delivery Address
+            </h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input name="full_name" placeholder="Full name *" required />
+              <Input name="phone" placeholder="Phone number *" required />
+            </div>
+            <Input name="address_line1" placeholder="Street address *" required />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Input name="city" placeholder="City *" required />
+              <Input name="state" placeholder="State / Province *" required />
+              <Input name="postal_code" placeholder="Postal code *" required />
+            </div>
+            <Input name="country" placeholder="Country *" defaultValue="US" required />
           </div>
-          <Input name="address_line1" placeholder="Street address" required />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input name="city" placeholder="City" required />
-            <Input name="state" placeholder="State / province" required />
-            <Input name="postal_code" placeholder="Postal code" required />
+
+          <div className="space-y-4 pt-4 border-t">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              2. Optional Coupon
+            </h4>
+            <Input
+              name="coupon_code"
+              placeholder="Discount code (e.g. SAVE10)"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              className="uppercase"
+            />
           </div>
-          <Input name="country" placeholder="Country" defaultValue="US" required />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
-              <input
-                type="radio"
-                name="payment_method"
-                checked={paymentMethod === "stripe"}
-                onChange={() => setPaymentMethod("stripe")}
-              />
-              <span>
-                <span className="block text-sm font-medium">Card payment</span>
-                <span className="text-xs text-muted-foreground">Stripe payment intent</span>
-              </span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3">
-              <input
-                type="radio"
-                name="payment_method"
-                checked={paymentMethod === "cod"}
-                onChange={() => setPaymentMethod("cod")}
-              />
-              <span>
-                <span className="block text-sm font-medium">Cash on delivery</span>
-                <span className="text-xs text-muted-foreground">Pay when delivered</span>
-              </span>
-            </label>
+
+          <div className="space-y-4 pt-4 border-t">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              3. Payment Method
+            </h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                  paymentMethod === "stripe"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border hover:bg-muted/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment_method"
+                  className="mt-1"
+                  checked={paymentMethod === "stripe"}
+                  onChange={() => setPaymentMethod("stripe")}
+                />
+                <div>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                    <CreditCard className="w-4 h-4 text-primary" />
+                    Stripe Secure Payment
+                  </span>
+                  <span className="text-xs text-muted-foreground block mt-0.5">
+                    Credit / Debit card (Instant checkout & database sync)
+                  </span>
+                </div>
+              </label>
+
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                  paymentMethod === "cod"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border hover:bg-muted/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment_method"
+                  className="mt-1"
+                  checked={paymentMethod === "cod"}
+                  onChange={() => setPaymentMethod("cod")}
+                />
+                <div>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                    <Truck className="w-4 h-4 text-primary" />
+                    Cash on Delivery
+                  </span>
+                  <span className="text-xs text-muted-foreground block mt-0.5">
+                    Pay securely in cash when parcel is delivered
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
-          <Button disabled={isSubmitting}>
-            {isSubmitting ? "Placing order..." : "Place order"}
-          </Button>
+
           {message && (
-            <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm" role="status">
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400" role="alert">
               {message}
-            </p>
+            </div>
           )}
+
+          <Button disabled={isSubmitting} size="lg" className="w-full mt-2">
+            {isSubmitting ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Processing order...
+              </span>
+            ) : paymentMethod === "stripe" ? (
+              "Proceed to Stripe Checkout"
+            ) : (
+              "Place Cash on Delivery Order"
+            )}
+          </Button>
         </form>
       </CardContent>
     </Card>

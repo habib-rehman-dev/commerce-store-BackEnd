@@ -9,6 +9,7 @@ from app.routers import (
     auth, users, categories, brands, products, specifications,
     cart, wishlist, orders, payments, coupons, addresses, reviews
 )
+from app.agents import agents_router
 from app.webhooks import stripe as stripe_webhook
 
 @asynccontextmanager
@@ -30,19 +31,28 @@ app.add_middleware(
     allow_origins=[
         settings.CLIENT_URL,
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
     ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:[0-9]+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global error handler
+# Global error handler with CORS headers preservation
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Access-Control-Allow-Methods"] = "*"
+        headers["Access-Control-Allow-Headers"] = "*"
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"success": False, "message": str(exc)}
+        content={"success": False, "message": str(exc)},
+        headers=headers
     )
 
 # Health endpoint
@@ -65,4 +75,5 @@ app.include_router(payments.router,       prefix="/api/payments",       tags=["p
 app.include_router(coupons.router,        prefix="/api/coupons",        tags=["coupons"])
 app.include_router(addresses.router,      prefix="/api/addresses",      tags=["addresses"])
 app.include_router(reviews.router,        prefix="/api/reviews",        tags=["reviews"])
+app.include_router(agents_router,         prefix="/api/agents",         tags=["agents"])
 app.include_router(stripe_webhook.router, prefix="/api/webhooks",       tags=["webhooks"])

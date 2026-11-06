@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { fetchApi } from "@/lib/api";
+import { auth } from "@/lib/auth";
 import type { Product, Review } from "@workspace/types";
-import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import { Separator } from "@workspace/ui/components/separator";
-import { ShoppingBag, Star, ShieldCheck, Truck } from "lucide-react";
+import { Star, ShieldCheck, Truck } from "lucide-react";
+import { AddToCartButton } from "./AddToCartButton";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -12,6 +13,7 @@ interface Props {
 
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
+  const session = await auth();
   let product: Product | null = null;
   let reviews: Review[] = [];
 
@@ -82,25 +84,9 @@ export default async function ProductDetailPage({ params }: Props) {
             <p className="text-muted-foreground text-sm leading-relaxed">{product.description}</p>
           </div>
 
-          {/* Variants */}
-          {product.variants?.length > 1 && (
-            <div className="mt-6">
-              <h3 className="font-semibold text-sm mb-3">Available Editions</h3>
-              <div className="flex flex-wrap gap-2">
-                {product.variants.map((v) => (
-                  <Button key={v.id} variant="outline" size="sm" className="text-xs">
-                    {Object.entries(v.attributes).map(([k, val]) => `${k}: ${val}`).join(" / ") || v.sku}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-8 flex flex-col gap-3">
-            <Button size="lg" className="w-full flex items-center justify-center gap-2">
-              <ShoppingBag className="w-5 h-5" />
-              Add to Cart
-            </Button>
+          {/* Add to Cart with live interactive variant selector */}
+          <div className="mt-8">
+            <AddToCartButton product={product} token={session?.accessToken} />
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-4 text-xs text-muted-foreground border-t pt-6">

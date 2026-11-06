@@ -27,11 +27,13 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
         hashed_password=hashed_pwd
     )
     db.add(user)
-    await db.flush()
+    await db.commit()
+    await db.refresh(user)
     return user
 
 async def update_user(db: AsyncSession, user: User, data: UserUpdate) -> User:
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(user, k, v)
-    await db.flush()
+    await db.commit()
+    await db.refresh(user)
     return user

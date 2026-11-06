@@ -22,7 +22,7 @@ function ThemeProvider({
 }
 
 function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
+  if (!target || !(target instanceof HTMLElement)) {
     return false
   }
 
@@ -39,6 +39,11 @@ function ThemeHotkey() {
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // 1. Immediately ignore if the user is typing in any input element
+      if (isTypingTarget(event.target)) {
+        return
+      }
+
       if (event.defaultPrevented || event.repeat) {
         return
       }
@@ -47,11 +52,12 @@ function ThemeHotkey() {
         return
       }
 
-      if (event.key.toLowerCase() !== "d") {
+      // Safe access: event.key can be undefined on certain virtual keyboards or IME inputs
+      if (!event.key || typeof event.key !== "string") {
         return
       }
 
-      if (isTypingTarget(event.target)) {
+      if (event.key.toLowerCase() !== "d") {
         return
       }
 

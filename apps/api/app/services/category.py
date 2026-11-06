@@ -40,25 +40,27 @@ async def get_children(db: AsyncSession, parent_id: str) -> List[Category]:
 async def create_category(db: AsyncSession, data: CategoryCreate) -> Category:
     cat = Category(**data.model_dump())
     db.add(cat)
-    await db.flush()
+    await db.commit()
     result = await db.execute(
         select(Category)
         .options(selectinload(Category.children))
         .where(Category.id == cat.id)
+        .execution_options(populate_existing=True)
     )
     return result.scalar_one()
 
 async def update_category(db: AsyncSession, category: Category, data: CategoryUpdate) -> Category:
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(category, k, v)
-    await db.flush()
+    await db.commit()
     result = await db.execute(
         select(Category)
         .options(selectinload(Category.children))
         .where(Category.id == category.id)
+        .execution_options(populate_existing=True)
     )
     return result.scalar_one()
 
 async def delete_category(db: AsyncSession, category: Category) -> None:
     await db.delete(category)
-    await db.flush()
+    await db.commit()

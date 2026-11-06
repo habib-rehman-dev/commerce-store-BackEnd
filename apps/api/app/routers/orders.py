@@ -26,6 +26,13 @@ async def get_my_orders(
 ):
     return await order_service.get_user_orders(db, user_id)
 
+@router.get("/admin/stats")
+async def get_admin_dashboard_stats(
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    return await order_service.get_admin_stats(db)
+
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
     order_id: str,

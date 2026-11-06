@@ -17,7 +17,8 @@ async def create_coupon(db: AsyncSession, data: CouponCreate) -> Coupon:
     coupon_data["code"] = coupon_data["code"].upper()
     coupon = Coupon(**coupon_data)
     db.add(coupon)
-    await db.flush()
+    await db.commit()
+    await db.refresh(coupon)
     return coupon
 
 async def update_coupon(db: AsyncSession, coupon: Coupon, data: CouponUpdate) -> Coupon:
@@ -26,9 +27,10 @@ async def update_coupon(db: AsyncSession, coupon: Coupon, data: CouponUpdate) ->
             setattr(coupon, k, v.upper())
         else:
             setattr(coupon, k, v)
-    await db.flush()
+    await db.commit()
+    await db.refresh(coupon)
     return coupon
 
 async def delete_coupon(db: AsyncSession, coupon: Coupon) -> None:
     await db.delete(coupon)
-    await db.flush()
+    await db.commit()
